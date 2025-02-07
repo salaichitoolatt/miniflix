@@ -27,4 +27,4 @@ app.get("/", (req, res) => {
   res.send("Hello World");
 });
 
-app.listen(PORT, () => console.log(`Video service is online.`));
+app.listen(PORT, () => console.log(`Video streaming service is online.`));
