@@ -2,7 +2,6 @@ const express = require("express");
 const {
   BlobServiceClient,
   StorageSharedKeyCredential,
-  StorageSharedKeyCredential,
 } = require("@azure/storage-blob");
 
 const PORT = process.env.PORT;
@@ -22,5 +21,23 @@ function createBlobService() {
 }
 
 const app = express();
+
+app.get("/video", async (req, res) => {
+  const videoPath = req.query.path;
+  const containerName = "videos";
+  const blobService = createBlobService();
+  const containerClient = blobService.getContainerClient(containerName);
+  const blobClient = containerClient.getBlobClient(videoPath);
+
+  const properties = await blobClient.getProperties();
+
+  res.writeHead(200, {
+    "content-length": properties.contentLength,
+    "content-type": "video/mp4",
+  });
+
+  const response = await blobClient.download();
+  response.readableStreamBody.pipe(res);
+});
 
 app.listen(PORT, () => console.log("Storage service online."));
