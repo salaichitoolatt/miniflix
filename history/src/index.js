@@ -1,24 +1,39 @@
 const express = require("express");
 const mongodb = require("mongodb");
+const amqp = require("amqplib");
 
 const PORT = process.env.PORT;
 const DBHOST = process.env.DBHOST;
 const DBNAME = process.env.DBNAME;
+const RABBIT = process.env.RABBIT;
 
 async function main() {
-  const client = await mongodb.MongoClient.connect(DBHOST);
-  const db = client.db(DBNAME);
-  const historyCollection = db.collection("videos");
   const app = express();
 
   app.use(express.json());
 
-  app.post("/viewed", async (req, res) => {
-    const videoPath = req.body.videoPath; 
-    await historyCollection.insertOne({ videoPath: videoPath });
+  const client = await mongodb.MongoClient.connect(DBHOST);
+  const db = client.db(DBNAME);
+  const historyCollection = db.collection("videos");
 
-    console.log(`Added video ${videoPath} to history.`);
-    res.sendStatus(200);
+  const messagingConnection = await amqp.connect(RABBIT);
+  console.log("Connected to RabbitMQ.");
+
+  const messageChannel = await messagingConnection.createChannel();
+
+  await messageChannel.assertQueue("viewed", {});
+  console.log(`Created "viewed" queue.`);
+
+  await messageChannel.consume("viewed", async (msg) => {
+    console.log("Received a 'viewed' message");
+
+    const parsedMsg = JSON.parse(msg.content.toString());
+
+    await historyCollection.insertOne({ videoPath: parsedMsg.videoPath });
+
+    console.log("Acknowledging message was handled.");
+
+    messageChannel.ack(msg);
   });
 
   app.listen(PORT, () => console.log("Microservice online."));

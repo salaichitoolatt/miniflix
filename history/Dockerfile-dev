@@ -2,4 +2,6 @@ FROM node:18-alpine3.21
 
 WORKDIR /usr/src/app
 COPY package.json package-lock.json ./
-CMD npm install && npm run start:dev
+CMD npm install && \
+    npx wait-port rabbit:5672 && \
+    npm run start:dev

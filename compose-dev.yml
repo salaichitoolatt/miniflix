@@ -6,6 +6,14 @@ services:
     ports:
       - "4000:27017"
     restart: "always"
+  
+  rabbit:
+    image: rabbitmq:3.12.4-management
+    container_name: rabbit
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    restart: "always"
 
   azure-storage:
     image: azure-storage
@@ -37,6 +45,7 @@ services:
       - "4002:80"
     environment:
       - PORT=80
+      - RABBIT=amqp://guest:guest@rabbit:5672
       - DBHOST=mongodb://db:27017
       - DBNAME=video-streaming
       - VIDEO_STORAGE_HOST=video-storage
@@ -56,7 +65,11 @@ services:
       - "4003:80"
     environment:
       - PORT=80
+      - RABBIT=amqp://guest:guest@rabbit:5672
       - DBHOST=mongodb://db:27017
       - DBNAME=history
       - NODE_ENV=development
+    depends_on:
+      - db
+      - rabbit
     restart: "no"

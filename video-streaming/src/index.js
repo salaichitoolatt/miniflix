@@ -1,45 +1,28 @@
 const express = require("express");
 const http = require("http");
 const mongodb = require("mongodb");
+const amqp = require("amqplib");
 
 const PORT = process.env.PORT;
 const VIDEO_STORAGE_HOST = process.env.VIDEO_STORAGE_HOST;
 const VIDEO_STORAGE_PORT = parseInt(process.env.VIDEO_STORAGE_PORT);
 const DBHOST = process.env.DBHOST;
 const DBNAME = process.env.DBNAME;
-
-function sendViewedMessage(videoPath) {
-  const data = JSON.stringify({ videoPath: videoPath });
-
-  const options = {
-    hostname: 'history',
-    port: 80,
-    path: '/viewed',
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Content-Length': data.length,
-    },
-  };
-
-  const req = http.request(options, (res) => {
-    res.on('data', (d) => {
-      process.stdout.write(d);
-    });
-  });
-
-  req.on('error', (err) => {
-    console.error("Failed to send viewed message.", err.stack);
-  });
-
-  req.write(data);
-  req.end();
-}
+const RABBIT = process.env.RABBIT;
 
 async function main() {
   const client = await mongodb.MongoClient.connect(DBHOST);
   const db = client.db(DBNAME);
   const videosCollection = db.collection("videos");
+
+  const messagingConnection = await amqp.connect(RABBIT);
+  const messageChannel = await messagingConnection.createChannel();
+
+  function sendViewedMessage(messageChannel, videoPath) {
+    const msg = { videoPath: videoPath};
+    const jsonMsg = JSON.stringify(msg);
+    messageChannel.publish("", "viewed", Buffer.from(jsonMsg))
+  }
 
   const app = express();
 
@@ -70,7 +53,7 @@ async function main() {
       res.writeHead(videoRes.statusCode, videoRes.headers);
       videoRes.pipe(res);
       videoRes.on('end', () => {
-        sendViewedMessage(videoRecord.videoPath);
+        sendViewedMessage(messageChannel, videoRecord.videoPath);
       });
     });
 
