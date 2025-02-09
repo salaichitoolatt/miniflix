@@ -40,4 +40,4 @@ app.get("/video", async (req, res) => {
   response.readableStreamBody.pipe(res);
 });
 
-app.listen(PORT, () => console.log("Storage service online."));
+app.listen(PORT, () => console.log("Microservice online."));
